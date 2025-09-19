@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>기사의 모험 — Knight's Tour</title>
+  <style>
+    :root{--bg:#0f172a;--panel:rgba(255,255,255,.06);--panel2:rgba(255,255,255,.03);--accent:#22d3ee;--accent2:#a78bfa;--good:#34d399;--bad:#ef4444}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Pretendard,Apple SD Gothic Neo,Noto Sans KR; color:#e5e7eb; background: radial-gradient(1000px 600px at 50% 0%, #111827 0%, var(--bg) 40%, #0b1220 100%);}    
+    .container{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{width:min(1100px,96vw);background:linear-gradient(180deg,var(--panel),var(--panel2));backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:24px}
+    .title{font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;margin:0 0 8px}
+    .sub{opacity:.85;margin:0 0 16px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .btn{cursor:pointer;display:inline-flex;align-items:center;gap:10px;border:none;border-radius:14px;padding:12px 18px;font-size:16px;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#0b1220;box-shadow:0 10px 30px rgba(34,211,238,.25);transition:transform .12s ease}
+    .btn.secondary{background:#111827;color:#e5e7eb;border:1px solid rgba(255,255,255,.1);box-shadow:none}
+    .btn:active{transform:translateY(1px)}
+
+    #gameWrap{display:none;margin-top:10px}
+    .hud{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0 16px}
+    .hud .stats{display:flex;gap:12px;flex-wrap:wrap}
+    .pill{border:1px solid rgba(255,255,255,.1);padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04)}
+    .pill strong{color:#fff}
+
+    .boardWrap{display:flex;justify-content:center}
+    .board{--n:5; width:min(86vmin, 780px); aspect-ratio:1/1; display:grid; grid-template-columns:repeat(var(--n),1fr); grid-template-rows:repeat(var(--n),1fr); gap:2px; background:#111827; border-radius:14px; padding:2px; border:1px solid rgba(255,255,255,.08)}
+    .cell{position:relative; background:#0b1220; border-radius:10px; display:flex; align-items:center; justify-content:center; user-select:none; cursor:pointer; transition:transform .06s ease, background .2s ease}
+    .cell.dark{background:#0a1020}
+    .cell.visited{background:linear-gradient(180deg, rgba(34,211,238,.12), rgba(167,139,250,.12))}
+    .cell.hint{outline:2px dashed rgba(255,255,255,.5); outline-offset:-4px; box-shadow: inset 0 0 0 2px rgba(34,211,238,.35)}
+    .cell.current{background:linear-gradient(180deg, rgba(34,211,238,.22), rgba(167,139,250,.22));}
+    .index{position:absolute; bottom:6px; right:8px; font-size:12px; opacity:.7}
+
+    .knight{font-size:clamp(26px, 4.6vmin, 48px); filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+
+    .overlay{position:fixed; inset:0; display:none; place-items:center; background:rgba(2,6,23,.6); backdrop-filter: blur(6px); z-index:2000}
+    .modal{width:min(680px, 92vw); background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.03)); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:20px}
+    .modal h2{margin:0 0 8px; font-size:28px}
+    .modal .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    table{width:100%; border-collapse: collapse; overflow:hidden; border-radius:12px}
+    th,td{padding:10px; border-bottom:1px solid rgba(255,255,255,.08); text-align:center}
+    th{background:rgba(255,255,255,.06)}
+
+    @media (max-width:760px){ .board{width:92vmin} }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <!-- START -->
+      <section id="startScreen">
+        <h1 class="title">기사의 모험</h1>
+        <p class="sub">나이트(♞)의 이동 규칙으로 모든 칸을 한 번씩만 밟아 보세요. 열린회로면 성공!</p>
+        <div class="row"><button class="btn" id="btnStart">게임 시작</button></div>
+      </section>
+
+      <!-- GAME -->
+      <section id="gameWrap">
+        <div class="hud">
+          <div class="stats">
+            <div class="pill">스테이지 <strong id="stageLabel">1</strong> / 5</div>
+            <div class="pill">보드 <strong id="boardLabel">5×5</strong></div>
+            <div class="pill">이동 <strong id="moveCount">0</strong>회</div>
+            <div class="pill">시간 <strong id="timer">00:00.0</strong></div>
+          </div>
+          <div class="row">
+            <button class="btn secondary" id="btnReset">리셋</button>
+            <button class="btn secondary" id="btnQuit">처음으로</button>
+          </div>
+        </div>
+        <div class="boardWrap">
+          <div class="board" id="board" aria-label="체스판"></div>
+        </div>
+      </section>
+
+      <!-- FAIL OVERLAY -->
+      <div class="overlay" id="failOverlay" role="dialog" aria-modal="true">
+        <div class="modal">
+          <h2 style="color:var(--bad)">실패!</h2>
+          <div class="grid">
+            <div class="pill">스테이지: <strong id="failStage">1</strong> / 5</div>
+            <div class="pill">보드: <strong id="failBoard">5×5</strong></div>
+            <div class="pill">이동 횟수: <strong id="failMoves">0</strong>회</div>
+            <div class="pill">시간: <strong id="failTime">00:00.0</strong></div>
+          </div>
+          <div class="row" style="margin-top:14px; justify-content:flex-end">
+            <button class="btn secondary" id="btnFailReplay">리플레이</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLEAR OVERLAY -->
+      <div class="overlay" id="clearOverlay" role="dialog" aria-modal="true">
+        <div class="modal">
+          <h2 style="color:var(--good)">스테이지 클리어!</h2>
+          <div class="grid">
+            <div class="pill">스테이지: <strong id="clearStage">1</strong> / 5</div>
+            <div class="pill">보드: <strong id="clearBoard">5×5</strong></div>
+            <div class="pill">이동 횟수: <strong id="clearMoves">0</strong>회</div>
+            <div class="pill">시간: <strong id="clearTime">00:00.0</strong></div>
+          </div>
+          <div class="row" style="margin-top:14px; justify-content:flex-end">
+            <button class="btn secondary" id="btnClearReplay">리플레이</button>
+            <button class="btn" id="btnNextStage">다음 스테이지</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINAL OVERLAY -->
+      <div class="overlay" id="finalOverlay" role="dialog" aria-modal="true">
+        <div class="modal">
+          <h2>최종 결과</h2>
+          <p class="sub">스테이지별 시간과 이동 횟수 요약</p>
+          <div id="summaryTableWrap"></div>
+          <div class="row" style="margin-top:14px; justify-content:flex-end">
+            <button class="btn" id="btnReplayAll">처음으로</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+(function(){
+  'use strict';
+  var STAGE_MIN = 5; // 5x5
+  var STAGE_MAX = 9; // 9x9 (stage 5)
+
+  // State
+  var stageIndex = 0; // 0..4 maps to size 5..9
+  var size = 5;
+  var boardEl = document.getElementById('board');
+  var cells = []; // 2D cells
+  var visited = []; // 2D booleans
+  var moveOrder = []; // list of {r,c}
+  var current = null; // {r,c}
+  var moveCount = 0;
+  var timerMs = 0; var tHandle = null; var started = false; // timer starts at first placement
+  var stats = []; // per cleared stage: {stage, size, moves, timeMs}
+
+  // UI refs
+  var startScreen = document.getElementById('startScreen');
+  var gameWrap = document.getElementById('gameWrap');
+  var moveCountEl = document.getElementById('moveCount');
+  var timerEl = document.getElementById('timer');
+  var stageLabel = document.getElementById('stageLabel');
+  var boardLabel = document.getElementById('boardLabel');
+  var failOverlay = document.getElementById('failOverlay');
+  var clearOverlay = document.getElementById('clearOverlay');
+  var finalOverlay = document.getElementById('finalOverlay');
+  var failStage = document.getElementById('failStage');
+  var failBoard = document.getElementById('failBoard');
+  var failMoves = document.getElementById('failMoves');
+  var failTime = document.getElementById('failTime');
+  var clearStage = document.getElementById('clearStage');
+  var clearBoard = document.getElementById('clearBoard');
+  var clearMoves = document.getElementById('clearMoves');
+  var clearTime = document.getElementById('clearTime');
+  var btnNextStage = document.getElementById('btnNextStage');
+  var summaryTableWrap = document.getElementById('summaryTableWrap');
+
+  // Buttons
+  document.getElementById('btnStart').addEventListener('click', startGame);
+  document.getElementById('btnReset').addEventListener('click', function(){ initStage(stageIndex); });
+  document.getElementById('btnQuit').addEventListener('click', backToStart);
+  document.getElementById('btnFailReplay').addEventListener('click', function(){ failOverlay.style.display='none'; initStage(stageIndex); });
+  document.getElementById('btnClearReplay').addEventListener('click', function(){ clearOverlay.style.display='none'; initStage(stageIndex); });
+  btnNextStage.addEventListener('click', nextStage);
+  document.getElementById('btnReplayAll').addEventListener('click', backToStart);
+
+  function startGame(){
+    stageIndex = 0; stats = [];
+    startScreen.style.display='none';
+    gameWrap.style.display='block';
+    initStage(stageIndex);
+  }
+  function nextStage(){
+    clearOverlay.style.display='none';
+    if(stageIndex >= (STAGE_MAX - STAGE_MIN)){
+      showFinal();
+    } else { stageIndex++; initStage(stageIndex); }
+  }
+  function backToStart(){
+    stopTimer();
+    failOverlay.style.display='none';
+    clearOverlay.style.display='none';
+    finalOverlay.style.display='none';
+    gameWrap.style.display='none';
+    startScreen.style.display='block';
+  }
+
+  function initStage(idx){
+    size = STAGE_MIN + idx; // 5..9
+    stageLabel.textContent = (idx+1);
+    boardLabel.textContent = size + '\u00D7' + size;
+    moveCount = 0; moveCountEl.textContent = '0';
+    timerMs = 0; timerEl.textContent = formatTime(0); started=false; stopTimer();
+    current = null; moveOrder=[];
+
+    buildBoard(size);
+  }
+
+  function buildBoard(n){
+    boardEl.style.setProperty('--n', n);
+    boardEl.innerHTML='';
+    cells = []; visited=[];
+    for(var r=0;r<n;r++){
+      cells[r]=[]; visited[r]=[];
+      for(var c=0;c<n;c++){
+        var cell=document.createElement('div');
+        cell.className='cell'+(((r+c)%2)?' dark':'');
+        cell.setAttribute('data-r', String(r));
+        cell.setAttribute('data-c', String(c));
+        var idx=document.createElement('div'); idx.className='index'; idx.textContent=''; cell.appendChild(idx);
+        cell.addEventListener('click', onCellClick);
+        boardEl.appendChild(cell);
+        cells[r][c]=cell; visited[r][c]=false;
+      }
+    }
+    updateHints();
+  }
+
+  function onCellClick(e){
+    var el=e.currentTarget; var r=Number(el.getAttribute('data-r')); var c=Number(el.getAttribute('data-c'));
+    if(current===null){
+      // First placement
+      placeKnight(r,c);
+      startTimer();
+      return;
+    }
+    var legal = legalMoves(current.r, current.c, size);
+    var ok=false; for(var i=0;i<legal.length;i++){ if(legal[i].r===r && legal[i].c===c && !visited[r][c]){ ok=true; break; } }
+    if(!ok) return;
+    moveKnight(r,c);
+  }
+
+  function placeKnight(r,c){
+    current={r:r,c:c}; visited[r][c]=true; moveOrder.push({r:r,c:c}); moveCount=0; moveCountEl.textContent='0';
+    draw();
+    checkState();
+  }
+
+  function moveKnight(r,c){
+    current={r:r,c:c}; visited[r][c]=true; moveOrder.push({r:r,c:c}); moveCount++; moveCountEl.textContent=String(moveCount);
+    draw();
+    checkState();
+  }
+
+  function draw(){
+    // Clear all
+    for(var r=0;r<size;r++){
+      for(var c=0;c<size;c++){
+        var cell=cells[r][c];
+        cell.classList.remove('visited','current','hint');
+        var idx=cell.querySelector('.index'); idx.textContent='';
+        cell.innerHTML = cell.innerHTML; // keep index element (simple)
+      }
+    }
+    // Draw visited with order number
+    for(var i=0;i<moveOrder.length;i++){
+      var p=moveOrder[i]; var cell=cells[p.r][p.c];
+      cell.classList.add('visited');
+      var idx=cell.querySelector('.index'); if(idx) idx.textContent=String(i+1);
+    }
+    // Current knight
+    if(current){
+      var cc=cells[current.r][current.c];
+      cc.classList.add('current');
+      cc.innerHTML = '<div class="knight">♞</div><div class="index">'+String(moveOrder.length)+'</div>';
+    }
+    updateHints();
+  }
+
+  function updateHints(){
+    // Remove old hints
+    for(var r=0;r<size;r++) for(var c=0;c<size;c++) cells[r][c].classList.remove('hint');
+    if(current===null){ return; }
+    var moves=legalMoves(current.r,current.c,size);
+    for(var i=0;i<moves.length;i++){
+      var m=moves[i]; if(!visited[m.r][m.c]) cells[m.r][m.c].classList.add('hint');
+    }
+  }
+
+  function legalMoves(r,c,n){
+    var deltas=[[+2,+1],[+2,-1],[-2,+1],[-2,-1],[+1,+2],[+1,-2],[-1,+2],[-1,-2]];
+    var arr=[];
+    for(var i=0;i<deltas.length;i++){
+      var rr=r+deltas[i][0], cc=c+deltas[i][1];
+      if(rr>=0 && rr<n && cc>=0 && cc<n) arr.push({r:rr,c:cc});
+    }
+    return arr;
+  }
+
+  function checkState(){
+    var total=size*size;
+    if(moveOrder.length===total){
+      // success
+      stopTimer();
+      clearStage.textContent = String(stageIndex+1);
+      clearBoard.textContent = size+'\u00D7'+size;
+      clearMoves.textContent = String(moveCount);
+      clearTime.textContent = formatTime(timerMs);
+      stats.push({stage:stageIndex+1,size:size,moves:moveCount,timeMs:timerMs});
+      // Next stage or final
+      btnNextStage.textContent = (stageIndex>=(STAGE_MAX-STAGE_MIN))? '최종 결과 보기' : '다음 스테이지';
+      clearOverlay.style.display='grid';
+      return;
+    }
+    // If stuck (no legal unvisited moves)
+    if(current!==null){
+      var moves=legalMoves(current.r,current.c,size);
+      var has=false; for(var i=0;i<moves.length;i++){ if(!visited[moves[i].r][moves[i].c]){ has=true; break; } }
+      if(!has){
+        stopTimer();
+        failStage.textContent=String(stageIndex+1);
+        failBoard.textContent=size+'\u00D7'+size;
+        failMoves.textContent=String(moveCount);
+        failTime.textContent=formatTime(timerMs);
+        failOverlay.style.display='grid';
+      }
+    }
+  }
+
+  function startTimer(){ if(tHandle) return; tHandle=setInterval(function(){ timerMs+=100; timerEl.textContent=formatTime(timerMs); },100); }
+  function stopTimer(){ if(tHandle){ clearInterval(tHandle); tHandle=null; } }
+  function formatTime(ms){ var t=Math.floor(ms), s=Math.floor(t/1000), m=Math.floor(s/60); var mm=('0'+m).slice(-2), ss=('0'+(s%60)).slice(-2), d=Math.floor((t%1000)/100); return mm+':'+ss+'.'+d; }
+
+  // Close overlays when clicking the backdrop
+  [failOverlay, clearOverlay, finalOverlay].forEach(function(ov){ ov.addEventListener('click', function(e){ if(e.target===ov) ov.style.display='none'; }); });
+
+  // SUMMARY
+  function showFinal(){
+    clearOverlay.style.display='none';
+    finalOverlay.style.display='grid';
+    var html = '<table><thead><tr><th>Stage</th><th>Board</th><th>Moves</th><th>Time</th></tr></thead><tbody>';
+    for(var i=0;i<stats.length;i++){
+      var s=stats[i];
+      html += '<tr><td>'+s.stage+'</td><td>'+s.size+'×'+s.size+'</td><td>'+s.moves+'</td><td>'+formatTime(s.timeMs)+'</td></tr>';
+    }
+    html += '</tbody></table>';
+    summaryTableWrap.innerHTML = html;
+  }
+})();
+</script>
+</body>
+</html>
