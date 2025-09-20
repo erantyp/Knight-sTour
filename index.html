@@ -157,6 +157,8 @@
   const finalOverlay = document.getElementById('final');
   const toast = document.getElementById('toast');
   const btnStart = document.getElementById('btnStart');
+  // click-through 방지용 가드
+  let suppressNextClick = false;
   const btnStartScreen = document.getElementById('btnStartScreen');
   const btnFinalToStart = document.getElementById('btnFinalToStart');
   const elapsedEl = document.getElementById('elapsed');
@@ -286,6 +288,8 @@
   }
 
   function onSquareClick(e){
+    // 시작버튼 클릭이 보드에 전파되는 현상 방지
+    if(suppressNextClick){ suppressNextClick = false; return; }
     const r = +e.currentTarget.dataset.r;
     const c = +e.currentTarget.dataset.c;
 
@@ -465,9 +469,13 @@
   btnUndo.addEventListener('click', undo);
   btnHint.addEventListener('click', showTop3);
   btnNext.addEventListener('click', ()=>{ if(path.length===N*N) { nextStage(); } });
-  btnStart.addEventListener('click', ()=>{ startOverlay.style.display='none'; newGame(); });
-  btnStartScreen.addEventListener('click', toStartScreen);
-  btnFinalToStart.addEventListener('click', toStartScreen);
+  btnStart.addEventListener('click', (ev)=>{
+    ev.preventDefault(); ev.stopPropagation();
+    suppressNextClick = true; // 바로 뒤 클릭 무시
+    requestAnimationFrame(()=>{ startOverlay.style.display='none'; newGame(); });
+  });
+  btnStartScreen.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); suppressNextClick=true; toStartScreen(); });
+  btnFinalToStart.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); suppressNextClick=true; toStartScreen(); });
 
   // Keyboard: hidden cheats
   // 1) Backquote (₩) then Enter within 1.5s => auto complete
