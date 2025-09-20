@@ -1,347 +1,391 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>기사의 모험 — Knight's Tour</title>
-  <style>
-    :root{--bg:#0f172a;--panel:rgba(255,255,255,.06);--panel2:rgba(255,255,255,.03);--accent:#22d3ee;--accent2:#a78bfa;--good:#34d399;--bad:#ef4444}
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Pretendard,Apple SD Gothic Neo,Noto Sans KR; color:#e5e7eb; background: radial-gradient(1000px 600px at 50% 0%, #111827 0%, var(--bg) 40%, #0b1220 100%);}    
-    .container{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{width:min(1100px,96vw);background:linear-gradient(180deg,var(--panel),var(--panel2));backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:24px}
-    .title{font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;margin:0 0 8px}
-    .sub{opacity:.85;margin:0 0 16px}
-    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-    .btn{cursor:pointer;display:inline-flex;align-items:center;gap:10px;border:none;border-radius:14px;padding:12px 18px;font-size:16px;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#0b1220;box-shadow:0 10px 30px rgba(34,211,238,.25);transition:transform .12s ease}
-    .btn.secondary{background:#111827;color:#e5e7eb;border:1px solid rgba(255,255,255,.1);box-shadow:none}
-    .btn:active{transform:translateY(1px)}
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>기사의 모험 (Knight's Tour)</title>
+<style>
+  :root{
+    --board-size: 5; /* stage 1: 5x5, will update via JS */
+    --cell: 84px;
+    --accent: #14b8a6; /* teal-500 */
+    --dark: #101114;
+    --light: #fafafa;
+    --square-dark: #769656; /* classic chess green */
+    --square-light: #eeeed2; /* classic chess tan */
+    --visited-shade: rgba(0,0,0,.22);
+    --current-glow: 0 0 0 3px #10b981, 0 0 18px #10b98188;
+    --legal-glow: 0 0 0 3px #60a5fa, 0 0 14px #60a5fa88;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    color:#e5e7eb; background: radial-gradient(1200px 800px at 20% -10%, #1f2937, #0b0c10);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .app{width:min(100%, 1100px)}
+  .topbar{display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:14px}
+  .title{font-weight:800; letter-spacing:.2px; font-size:clamp(18px,3vw,26px)}
+  .controls{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  button{
+    background:#111827; border:1px solid #262b36; color:#e5e7eb; padding:8px 12px; border-radius:10px; cursor:pointer; transition:.15s transform, .15s opacity; font-weight:600
+  }
+  button:hover{transform:translateY(-1px)}
+  button[disabled]{opacity:.45; cursor:not-allowed}
+  .pill{padding:6px 10px; border-radius:999px; background:#0b1220; border:1px solid #233047;}
+  .hint{opacity:.85; font-size:13px}
 
-    #gameWrap{display:none;margin-top:10px}
-    .hud{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:8px 0 16px}
-    .hud .stats{display:flex;gap:12px;flex-wrap:wrap}
-    .pill{border:1px solid rgba(255,255,255,.1);padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04)}
-    .pill strong{color:#fff}
+  .board-wrap{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap}
+  .board{
+    --size: calc(var(--cell) * var(--board-size));
+    width:var(--size); height:var(--size);
+    display:grid; grid-template-columns: repeat(var(--board-size), var(--cell));
+    grid-template-rows: repeat(var(--board-size), var(--cell));
+    border-radius:16px; overflow:hidden; box-shadow: 0 10px 40px #00000066;
+    border:2px solid #2a2f3a;
+  }
+  .square{position:relative; display:flex; align-items:center; justify-content:center; user-select:none;}
+  .square.light{background:var(--square-light)}
+  .square.dark{background:var(--square-dark)}
+  /* visited shading */
+  .square.visited::after{content:""; position:absolute; inset:0; background:var(--visited-shade)}
+  /* current cell glow */
+  .square.current{outline: none; box-shadow: var(--current-glow) inset}
+  /* legal move highlight */
+  .square.legal{outline: none; box-shadow: var(--legal-glow) inset}
 
-    .boardWrap{display:flex;justify-content:center}
-    .board{--n:5; width:min(86vmin, 780px); aspect-ratio:1/1; display:grid; grid-template-columns:repeat(var(--n),1fr); grid-template-rows:repeat(var(--n),1fr); gap:2px; background:#111827; border-radius:14px; padding:2px; border:1px solid rgba(255,255,255,.08)}
-    .cell{position:relative; background:#0b1220; border-radius:10px; display:flex; align-items:center; justify-content:center; user-select:none; cursor:pointer; transition:transform .06s ease, background .2s ease}
-    .cell.dark{background:#0a1020}
-    .cell.visited{background:linear-gradient(180deg, rgba(34,211,238,.12), rgba(167,139,250,.12))}
-    .cell.hint{outline:2px dashed rgba(255,255,255,.5); outline-offset:-4px; box-shadow: inset 0 0 0 2px rgba(34,211,238,.35)}
-    .cell.current{background:linear-gradient(180deg, rgba(34,211,238,.22), rgba(167,139,250,.22));}
-    .index{position:absolute; bottom:6px; right:8px; font-size:12px; opacity:.7}
+  .idx{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color:#111; mix-blend-mode:multiply; z-index:1; font-size: clamp(16px, calc(var(--cell)*0.28), 28px)}
+  .idx.visited{color:#333; opacity:.8}
+  .knight{position:absolute; z-index:2; font-size: clamp(28px, calc(var(--cell)*0.58), 54px); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35));}
 
-    .knight{font-size:clamp(26px, 4.6vmin, 48px); filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+  .side{
+    flex:1; min-width:260px; background:#0b1220; border:1px solid #1f2a44; border-radius:16px; padding:14px;
+  }
+  .side h3{margin:.2rem 0 .6rem; font-size:16px}
+  .meta{display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:14px}
+  .meta div{background:#0e1726; border:1px solid #25324a; padding:8px 10px; border-radius:10px}
+  .kbd{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace; background:#111827; border:1px solid #374151; padding:2px 6px; border-radius:6px}
+  .footer{margin-top:10px; font-size:13px; opacity:.85}
 
-    .overlay{position:fixed; inset:0; display:none; place-items:center; background:rgba(2,6,23,.6); backdrop-filter: blur(6px); z-index:2000}
-    .modal{width:min(680px, 92vw); background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.03)); border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:20px}
-    .modal h2{margin:0 0 8px; font-size:28px}
-    .modal .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
-    table{width:100%; border-collapse: collapse; overflow:hidden; border-radius:12px}
-    th,td{padding:10px; border-bottom:1px solid rgba(255,255,255,.08); text-align:center}
-    th{background:rgba(255,255,255,.06)}
+  .start{
+    position:fixed; inset:0; background: radial-gradient(1000px 700px at 30% -10%, #18212f, #090b0f);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .start-card{background:#0b1220; border:1px solid #1f2a44; border-radius:16px; padding:22px; width:min(92vw, 560px)}
+  .start-card h1{margin:0 0 8px; font-size:24px}
+  .start-card p{margin:0 0 12px; opacity:.9}
+  .stage-select{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 14px}
+  .stage-select button{padding:8px 10px}
 
-    @media (max-width:760px){ .board{width:92vmin} }
-  </style>
+  .toast{position:fixed; right:16px; bottom:16px; background:#0b1220; border:1px solid #1f2a44; padding:10px 12px; border-radius:10px; font-size:14px; opacity:0; transform:translateY(8px); transition:.2s}
+  .toast.show{opacity:1; transform:translateY(0)}
+</style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <!-- START -->
-      <section id="startScreen">
-        <h1 class="title">기사의 모험</h1>
-        <p class="sub">나이트(♞)의 이동 규칙으로 모든 칸을 한 번씩만 밟아 보세요. 열린회로면 성공!</p>
-        <div class="row"><button class="btn" id="btnStart">게임 시작</button></div>
-      </section>
-
-      <!-- GAME -->
-      <section id="gameWrap">
-        <div class="hud">
-          <div class="stats">
-            <div class="pill">스테이지 <strong id="stageLabel">1</strong> / 5</div>
-            <div class="pill">보드 <strong id="boardLabel">5×5</strong></div>
-            <div class="pill">이동 <strong id="moveCount">0</strong>회</div>
-            <div class="pill">시간 <strong id="timer">00:00.0</strong></div>
-          </div>
-          <div class="row">
-            <button class="btn secondary" id="btnReset">리셋</button>
-            <button class="btn secondary" id="btnQuit">처음으로</button>
-          </div>
-        </div>
-        <div class="boardWrap">
-          <div class="board" id="board" aria-label="체스판"></div>
-        </div>
-      </section>
-
-      <!-- FAIL OVERLAY -->
-      <div class="overlay" id="failOverlay" role="dialog" aria-modal="true">
-        <div class="modal">
-          <h2 style="color:var(--bad)">실패!</h2>
-          <div class="grid">
-            <div class="pill">스테이지: <strong id="failStage">1</strong> / 5</div>
-            <div class="pill">보드: <strong id="failBoard">5×5</strong></div>
-            <div class="pill">이동 횟수: <strong id="failMoves">0</strong>회</div>
-            <div class="pill">시간: <strong id="failTime">00:00.0</strong></div>
-          </div>
-          <div class="row" style="margin-top:14px; justify-content:flex-end">
-            <button class="btn secondary" id="btnFailReplay">리플레이</button>
-          </div>
-        </div>
+  <div class="app">
+    <div class="topbar">
+      <div class="title">♞ 기사의 모험 <span class="pill" id="stageLabel">Stage 1 · 5×5</span></div>
+      <div class="controls">
+        <button id="btnReset">리셋</button>
+        <button id="btnUndo">되돌리기</button>
+        <button id="btnSolve">힌트/자동완성</button>
+        <button id="btnNext" disabled>다음 스테이지 ▶</button>
       </div>
+    </div>
 
-      <!-- CLEAR OVERLAY -->
-      <div class="overlay" id="clearOverlay" role="dialog" aria-modal="true">
-        <div class="modal">
-          <h2 style="color:var(--good)">스테이지 클리어!</h2>
-          <div class="grid">
-            <div class="pill">스테이지: <strong id="clearStage">1</strong> / 5</div>
-            <div class="pill">보드: <strong id="clearBoard">5×5</strong></div>
-            <div class="pill">이동 횟수: <strong id="clearMoves">0</strong>회</div>
-            <div class="pill">시간: <strong id="clearTime">00:00.0</strong></div>
-          </div>
-          <div class="row" style="margin-top:14px; justify-content:flex-end">
-            <button class="btn secondary" id="btnClearReplay">리플레이</button>
-            <button class="btn" id="btnNextStage">다음 스테이지</button>
-          </div>
+    <div class="board-wrap">
+      <div id="board" class="board" aria-label="체스판" role="grid"></div>
+      <aside class="side">
+        <h3>진행 정보</h3>
+        <div class="meta">
+          <div>방문 수: <b id="moves">0</b></div>
+          <div>전체 칸: <b id="total">25</b></div>
+          <div>현재 좌표: <b id="coord">-</b></div>
+          <div>남은 칸: <b id="left">25</b></div>
         </div>
-      </div>
-
-      <!-- FINAL OVERLAY -->
-      <div class="overlay" id="finalOverlay" role="dialog" aria-modal="true">
-        <div class="modal">
-          <h2>최종 결과</h2>
-          <p class="sub">스테이지별 시간과 이동 횟수 요약</p>
-          <div id="summaryTableWrap"></div>
-          <div class="row" style="margin-top:14px; justify-content:flex-end">
-            <button class="btn" id="btnReplayAll">처음으로</button>
-          </div>
+        <div class="footer">
+          먼저 시작 칸을 <b>클릭</b>하세요. 이후에는 ♞ 나이트의 이동 규칙(2칸+1칸 L자)으로만 이동할 수 있어요.<br/><br/>
+          이미 방문한 칸은 <b>살짝 어둡게</b> 표시되고, 방문 순서 번호는 <b>중앙</b>에 나타납니다. 가능한 다음 이동은 파란빛 윤곽으로 표시돼요.
+          <hr style="border:0; border-top:1px solid #1f2a44; margin:12px 0">
+          <b>개발자 치트</b> · <span class="kbd">₩</span> → <span class="kbd">Enter</span> 를 빠르게 누르면 현재 스테이지를 자동 완성합니다.
         </div>
-      </div>
-
+      </aside>
     </div>
   </div>
 
+  <div class="start" id="start">
+    <div class="start-card">
+      <h1>♞ 기사의 모험</h1>
+      <p>나이트의 규칙으로 모든 칸을 한 번씩만 방문하세요. 스테이지는 5×5부터 9×9까지 올라갑니다.</p>
+      <div class="stage-select" id="stageButtons"></div>
+      <button id="btnStart">게임 시작</button>
+      <p class="hint" style="margin-top:10px">팁: 시작 칸을 잘 고르는 것이 중요해요. 막히면 <b>되돌리기</b>를 눌러 이전 칸으로 돌아가세요.</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">치트 활성화! 자동 완성 중…</div>
+
 <script>
 (function(){
-  'use strict';
-  var STAGE_MIN = 5; // 5x5
-  var STAGE_MAX = 9; // 9x9 (stage 5)
+  // --- Game State ---
+  const stages = [5,6,7,8,9];
+  let stageIndex = 0; // 0..4
+  let N = stages[stageIndex];
+  let boardEl = document.getElementById('board');
+  let movesEl = document.getElementById('moves');
+  let totalEl = document.getElementById('total');
+  let leftEl = document.getElementById('left');
+  let coordEl = document.getElementById('coord');
+  let stageLabel = document.getElementById('stageLabel');
+  let btnNext = document.getElementById('btnNext');
+  let btnReset = document.getElementById('btnReset');
+  let btnUndo  = document.getElementById('btnUndo');
+  let btnSolve = document.getElementById('btnSolve');
+  const startOverlay = document.getElementById('start');
+  const toast = document.getElementById('toast');
 
-  // State
-  var stageIndex = 0; // 0..4 maps to size 5..9
-  var size = 5;
-  var boardEl = document.getElementById('board');
-  var cells = []; // 2D cells
-  var visited = []; // 2D booleans
-  var moveOrder = []; // list of {r,c}
-  var current = null; // {r,c}
-  var moveCount = 0;
-  var timerMs = 0; var tHandle = null; var started = false; // timer starts at first placement
-  var stats = []; // per cleared stage: {stage, size, moves, timeMs}
+  // cheat detector: Backquote (₩ on KR keybd) then Enter within 1.5s
+  let cheatArmed = false; let cheatTimer = null;
 
-  // UI refs
-  var startScreen = document.getElementById('startScreen');
-  var gameWrap = document.getElementById('gameWrap');
-  var moveCountEl = document.getElementById('moveCount');
-  var timerEl = document.getElementById('timer');
-  var stageLabel = document.getElementById('stageLabel');
-  var boardLabel = document.getElementById('boardLabel');
-  var failOverlay = document.getElementById('failOverlay');
-  var clearOverlay = document.getElementById('clearOverlay');
-  var finalOverlay = document.getElementById('finalOverlay');
-  var failStage = document.getElementById('failStage');
-  var failBoard = document.getElementById('failBoard');
-  var failMoves = document.getElementById('failMoves');
-  var failTime = document.getElementById('failTime');
-  var clearStage = document.getElementById('clearStage');
-  var clearBoard = document.getElementById('clearBoard');
-  var clearMoves = document.getElementById('clearMoves');
-  var clearTime = document.getElementById('clearTime');
-  var btnNextStage = document.getElementById('btnNextStage');
-  var summaryTableWrap = document.getElementById('summaryTableWrap');
+  const knightMoves = [
+    [ 2, 1],[ 2,-1],[-2, 1],[-2,-1],
+    [ 1, 2],[ 1,-2],[-1, 2],[-1,-2]
+  ];
+
+  let current = null; // {r,c}
+  let path = []; // list of {r,c}
+  let visited = Array.from({length: N}, () => Array(N).fill(0)); // 0=unvisited, >0 move index
+
+  // --- Utils ---
+  const idx = (r,c) => r*N + c;
+  const inBounds = (r,c) => r>=0 && c>=0 && r<N && c<N;
+  function setCSSVar(name, value){ document.documentElement.style.setProperty(name, value); }
+  function showToast(msg){ toast.textContent = msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 1400); }
+
+  function updateHUD(){
+    movesEl.textContent = path.length;
+    totalEl.textContent = N*N;
+    leftEl.textContent = N*N - path.length;
+    coordEl.textContent = current ? `(${current.r+1}, ${current.c+1})` : '-';
+
+    // next stage button enable
+    btnNext.disabled = (path.length !== N*N);
+  }
+
+  // Build stage buttons on start overlay
+  const stageButtons = document.getElementById('stageButtons');
+  stages.forEach((size, i)=>{
+    const b = document.createElement('button');
+    b.textContent = `Stage ${i+1} · ${size}×${size}`;
+    b.addEventListener('click', ()=>{ stageIndex=i; newGame(); startOverlay.style.display='none'; });
+    stageButtons.appendChild(b);
+  });
+  document.getElementById('btnStart').addEventListener('click', ()=>{ startOverlay.style.display='none'; newGame(); });
+
+  // --- Build Board ---
+  function buildBoard(){
+    boardEl.innerHTML = '';
+    boardEl.style.setProperty('--board-size', N);
+    const cellPx = Math.max(60, Math.min(96, Math.floor(760 / N))); // responsive-ish
+    setCSSVar('--cell', cellPx+'px');
+
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        const sq = document.createElement('div');
+        sq.className = 'square ' + (((r+c)%2===0)?'light':'dark');
+        sq.dataset.r = r; sq.dataset.c = c; sq.role = 'gridcell';
+
+        const idxSpan = document.createElement('div');
+        idxSpan.className = 'idx';
+        idxSpan.textContent = '';
+        sq.appendChild(idxSpan);
+
+        sq.addEventListener('click', onSquareClick);
+        boardEl.appendChild(sq);
+      }
+    }
+  }
+
+  function clearBoardDecor(){
+    for(const sq of boardEl.children){
+      sq.classList.remove('visited','current','legal');
+      const idxSpan = sq.querySelector('.idx');
+      idxSpan.classList.remove('visited');
+      // remove any knight icons
+      const k = sq.querySelector('.knight');
+      if(k) k.remove();
+    }
+  }
+
+  function render(){
+    clearBoardDecor();
+
+    // visited & numbering
+    for(let r=0;r<N;r++){
+      for(let c=0;c<N;c++){
+        const n = visited[r][c];
+        if(n>0){
+          const sq = boardEl.children[idx(r,c)];
+          sq.classList.add('visited');
+          const idxSpan = sq.querySelector('.idx');
+          idxSpan.textContent = n; // centered numbering
+          idxSpan.classList.add('visited');
+        }
+      }
+    }
+
+    // current knight
+    if(current){
+      const sq = boardEl.children[idx(current.r,current.c)];
+      sq.classList.add('current');
+      const k = document.createElement('div');
+      // Use white knight symbol for visibility
+      k.className = 'knight';
+      k.textContent = '♞';
+      sq.appendChild(k);
+
+      // legal moves highlight
+      for(const [dr,dc] of knightMoves){
+        const nr=current.r+dr, nc=current.c+dc;
+        if(inBounds(nr,nc) && !visited[nr][nc]){
+          boardEl.children[idx(nr,nc)].classList.add('legal');
+        }
+      }
+    }
+
+    updateHUD();
+  }
+
+  function onSquareClick(e){
+    const r = +e.currentTarget.dataset.r;
+    const c = +e.currentTarget.dataset.c;
+
+    // first click sets the start
+    if(!current){
+      current = {r,c};
+      visited[r][c] = 1;
+      path = [{r,c}];
+      render();
+      return;
+    }
+
+    // subsequent clicks must be legal knight moves
+    const isLegal = knightMoves.some(([dr,dc])=> current.r+dr===r && current.c+dc===c);
+    if(!isLegal || visited[r][c]) return; // ignore illegal or revisits
+
+    current = {r,c};
+    visited[r][c] = path.length + 1;
+    path.push({r,c});
+
+    render();
+
+    // win check
+    if(path.length === N*N){
+      showToast(`축하합니다! Stage ${stageIndex+1} 클리어 🎉`);
+    }
+  }
+
+  function newGame(){
+    N = stages[stageIndex];
+    visited = Array.from({length: N}, () => Array(N).fill(0));
+    current = null; path = [];
+    stageLabel.textContent = `Stage ${stageIndex+1} · ${N}×${N}`;
+    buildBoard(); render();
+  }
+
+  function undo(){
+    if(path.length<=1){ // clear start if exists
+      if(path.length===1){
+        visited[path[0].r][path[0].c]=0;
+      }
+      current=null; path=[]; render(); return;
+    }
+    const last = path.pop();
+    visited[last.r][last.c]=0;
+    current = path[path.length-1];
+    render();
+  }
+
+  // Warnsdorff heuristic auto-solver (greedy)
+  function warnsdorffSolve(from){
+    // if no start, choose a corner for better success on odd boards
+    let cur = from || ( {r:0,c:0} );
+    if(!from){ visited[cur.r][cur.c]=1; path=[{...cur}]; }
+
+    const degree = (r,c)=>{
+      let d=0; for(const [dr,dc] of knightMoves){
+        const nr=r+dr, nc=c+dc; if(inBounds(nr,nc) && !visited[nr][nc]) d++;
+      } return d;
+    }
+
+    while(path.length < N*N){
+      let candidates=[];
+      for(const [dr,dc] of knightMoves){
+        const nr=cur.r+dr, nc=cur.c+dc;
+        if(inBounds(nr,nc) && !visited[nr][nc]){
+          candidates.push({r:nr,c:nc, deg:degree(nr,nc)});
+        }
+      }
+      if(candidates.length===0) return false; // dead end
+      candidates.sort((a,b)=> a.deg-b.deg || (Math.random()-0.5));
+      const nxt = candidates[0];
+      cur = {r:nxt.r, c:nxt.c};
+      visited[cur.r][cur.c] = path.length+1;
+      path.push({...cur});
+    }
+    current = {...path[path.length-1]};
+    return true;
+  }
+
+  function autoComplete(){
+    if(!current){
+      // choose an okay starting square heuristically for success ratio
+      current = {r: (N%2? Math.floor(N/2):1), c: (N%2? 0:1)};
+      visited[current.r][current.c]=1; path=[{...current}];
+    }
+    // try greedy multiple times with slight randomization for robustness
+    const snapshot = visited.map(row=>row.slice());
+    const start = {...current};
+    for(let tries=0; tries<120; tries++){
+      // reset to snapshot
+      for(let r=0;r<N;r++) for(let c=0;c<N;c++) visited[r][c]=snapshot[r][c];
+      path = [];
+      const startCell = visited[start.r][start.c] ? start : start; // keep same start
+      if(!visited[startCell.r][startCell.c]){ visited[startCell.r][startCell.c]=1; }
+      path=[{...startCell}];
+      current={...startCell};
+
+      // randomize move order a bit each attempt
+      knightMoves.sort(()=>Math.random()-0.5);
+      const ok = warnsdorffSolve(startCell);
+      if(ok){ render(); return true; }
+    }
+    render();
+    return false;
+  }
 
   // Buttons
-  document.getElementById('btnStart').addEventListener('click', startGame);
-  document.getElementById('btnReset').addEventListener('click', function(){ initStage(stageIndex); });
-  document.getElementById('btnQuit').addEventListener('click', backToStart);
-  document.getElementById('btnFailReplay').addEventListener('click', function(){ failOverlay.style.display='none'; initStage(stageIndex); });
-  document.getElementById('btnClearReplay').addEventListener('click', function(){ clearOverlay.style.display='none'; initStage(stageIndex); });
-  btnNextStage.addEventListener('click', nextStage);
-  document.getElementById('btnReplayAll').addEventListener('click', backToStart);
+  btnReset.addEventListener('click', newGame);
+  btnUndo.addEventListener('click', undo);
+  btnSolve.addEventListener('click', ()=>{ const ok = autoComplete(); showToast(ok? '자동 완성 완료!':'완성에 실패했어요. 다시 시도하세요.'); });
+  btnNext.addEventListener('click', ()=>{ if(stageIndex<stages.length-1){ stageIndex++; newGame(); } });
 
-  function startGame(){
-    stageIndex = 0; stats = [];
-    startScreen.style.display='none';
-    gameWrap.style.display='block';
-    initStage(stageIndex);
-  }
-  function nextStage(){
-    clearOverlay.style.display='none';
-    if(stageIndex >= (STAGE_MAX - STAGE_MIN)){
-      showFinal();
-    } else { stageIndex++; initStage(stageIndex); }
-  }
-  function backToStart(){
-    stopTimer();
-    failOverlay.style.display='none';
-    clearOverlay.style.display='none';
-    finalOverlay.style.display='none';
-    gameWrap.style.display='none';
-    startScreen.style.display='block';
-  }
-
-  function initStage(idx){
-    size = STAGE_MIN + idx; // 5..9
-    stageLabel.textContent = (idx+1);
-    boardLabel.textContent = size + '\u00D7' + size;
-    moveCount = 0; moveCountEl.textContent = '0';
-    timerMs = 0; timerEl.textContent = formatTime(0); started=false; stopTimer();
-    current = null; moveOrder=[];
-
-    buildBoard(size);
-  }
-
-  function buildBoard(n){
-    boardEl.style.setProperty('--n', n);
-    boardEl.innerHTML='';
-    cells = []; visited=[];
-    for(var r=0;r<n;r++){
-      cells[r]=[]; visited[r]=[];
-      for(var c=0;c<n;c++){
-        var cell=document.createElement('div');
-        cell.className='cell'+(((r+c)%2)?' dark':'');
-        cell.setAttribute('data-r', String(r));
-        cell.setAttribute('data-c', String(c));
-        var idx=document.createElement('div'); idx.className='index'; idx.textContent=''; cell.appendChild(idx);
-        cell.addEventListener('click', onCellClick);
-        boardEl.appendChild(cell);
-        cells[r][c]=cell; visited[r][c]=false;
-      }
+  // Keyboard: cheat sequence (₩ then Enter within 1.5s)
+  window.addEventListener('keydown', (e)=>{
+    if(e.code === 'Backquote'){ // ₩ / `
+      cheatArmed = true;
+      clearTimeout(cheatTimer);
+      cheatTimer = setTimeout(()=> cheatArmed=false, 1500);
+    } else if(e.key === 'Enter' && cheatArmed){
+      cheatArmed=false; clearTimeout(cheatTimer);
+      showToast('치트 활성화! 자동 완성 중…');
+      setTimeout(()=>{ const ok = autoComplete(); if(!ok) showToast('치트 실패 😵 다시 시도!'); }, 50);
     }
-    updateHints();
-  }
+  }, {passive:true});
 
-  function onCellClick(e){
-    var el=e.currentTarget; var r=Number(el.getAttribute('data-r')); var c=Number(el.getAttribute('data-c'));
-    if(current===null){
-      // First placement
-      placeKnight(r,c);
-      startTimer();
-      return;
-    }
-    var legal = legalMoves(current.r, current.c, size);
-    var ok=false; for(var i=0;i<legal.length;i++){ if(legal[i].r===r && legal[i].c===c && !visited[r][c]){ ok=true; break; } }
-    if(!ok) return;
-    moveKnight(r,c);
-  }
-
-  function placeKnight(r,c){
-    current={r:r,c:c}; visited[r][c]=true; moveOrder.push({r:r,c:c}); moveCount=0; moveCountEl.textContent='0';
-    draw();
-    checkState();
-  }
-
-  function moveKnight(r,c){
-    current={r:r,c:c}; visited[r][c]=true; moveOrder.push({r:r,c:c}); moveCount++; moveCountEl.textContent=String(moveCount);
-    draw();
-    checkState();
-  }
-
-  function draw(){
-    // Clear all
-    for(var r=0;r<size;r++){
-      for(var c=0;c<size;c++){
-        var cell=cells[r][c];
-        cell.classList.remove('visited','current','hint');
-        var idx=cell.querySelector('.index'); idx.textContent='';
-        cell.innerHTML = cell.innerHTML; // keep index element (simple)
-      }
-    }
-    // Draw visited with order number
-    for(var i=0;i<moveOrder.length;i++){
-      var p=moveOrder[i]; var cell=cells[p.r][p.c];
-      cell.classList.add('visited');
-      var idx=cell.querySelector('.index'); if(idx) idx.textContent=String(i+1);
-    }
-    // Current knight
-    if(current){
-      var cc=cells[current.r][current.c];
-      cc.classList.add('current');
-      cc.innerHTML = '<div class="knight">♞</div><div class="index">'+String(moveOrder.length)+'</div>';
-    }
-    updateHints();
-  }
-
-  function updateHints(){
-    // Remove old hints
-    for(var r=0;r<size;r++) for(var c=0;c<size;c++) cells[r][c].classList.remove('hint');
-    if(current===null){ return; }
-    var moves=legalMoves(current.r,current.c,size);
-    for(var i=0;i<moves.length;i++){
-      var m=moves[i]; if(!visited[m.r][m.c]) cells[m.r][m.c].classList.add('hint');
-    }
-  }
-
-  function legalMoves(r,c,n){
-    var deltas=[[+2,+1],[+2,-1],[-2,+1],[-2,-1],[+1,+2],[+1,-2],[-1,+2],[-1,-2]];
-    var arr=[];
-    for(var i=0;i<deltas.length;i++){
-      var rr=r+deltas[i][0], cc=c+deltas[i][1];
-      if(rr>=0 && rr<n && cc>=0 && cc<n) arr.push({r:rr,c:cc});
-    }
-    return arr;
-  }
-
-  function checkState(){
-    var total=size*size;
-    if(moveOrder.length===total){
-      // success
-      stopTimer();
-      clearStage.textContent = String(stageIndex+1);
-      clearBoard.textContent = size+'\u00D7'+size;
-      clearMoves.textContent = String(moveCount);
-      clearTime.textContent = formatTime(timerMs);
-      stats.push({stage:stageIndex+1,size:size,moves:moveCount,timeMs:timerMs});
-      // Next stage or final
-      btnNextStage.textContent = (stageIndex>=(STAGE_MAX-STAGE_MIN))? '최종 결과 보기' : '다음 스테이지';
-      clearOverlay.style.display='grid';
-      return;
-    }
-    // If stuck (no legal unvisited moves)
-    if(current!==null){
-      var moves=legalMoves(current.r,current.c,size);
-      var has=false; for(var i=0;i<moves.length;i++){ if(!visited[moves[i].r][moves[i].c]){ has=true; break; } }
-      if(!has){
-        stopTimer();
-        failStage.textContent=String(stageIndex+1);
-        failBoard.textContent=size+'\u00D7'+size;
-        failMoves.textContent=String(moveCount);
-        failTime.textContent=formatTime(timerMs);
-        failOverlay.style.display='grid';
-      }
-    }
-  }
-
-  function startTimer(){ if(tHandle) return; tHandle=setInterval(function(){ timerMs+=100; timerEl.textContent=formatTime(timerMs); },100); }
-  function stopTimer(){ if(tHandle){ clearInterval(tHandle); tHandle=null; } }
-  function formatTime(ms){ var t=Math.floor(ms), s=Math.floor(t/1000), m=Math.floor(s/60); var mm=('0'+m).slice(-2), ss=('0'+(s%60)).slice(-2), d=Math.floor((t%1000)/100); return mm+':'+ss+'.'+d; }
-
-  // Close overlays when clicking the backdrop
-  [failOverlay, clearOverlay, finalOverlay].forEach(function(ov){ ov.addEventListener('click', function(e){ if(e.target===ov) ov.style.display='none'; }); });
-
-  // SUMMARY
-  function showFinal(){
-    clearOverlay.style.display='none';
-    finalOverlay.style.display='grid';
-    var html = '<table><thead><tr><th>Stage</th><th>Board</th><th>Moves</th><th>Time</th></tr></thead><tbody>';
-    for(var i=0;i<stats.length;i++){
-      var s=stats[i];
-      html += '<tr><td>'+s.stage+'</td><td>'+s.size+'×'+s.size+'</td><td>'+s.moves+'</td><td>'+formatTime(s.timeMs)+'</td></tr>';
-    }
-    html += '</tbody></table>';
-    summaryTableWrap.innerHTML = html;
-  }
+  // init only the start overlay; actual board builds after start
+  // (keeps first paint light)
 })();
 </script>
 </body>
