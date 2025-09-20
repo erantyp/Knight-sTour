@@ -6,77 +6,52 @@
 <title>기사의 모험 (Knight's Tour)</title>
 <style>
   :root{
-    --board-size: 5; /* stage 1: 5x5; stages go to 9 */
+    --board-size: 5;
     --cell: 84px;
-    --accent: #14b8a6; /* teal-500 */
-    --dark: #101114;
-    --light: #fafafa;
-    --square-dark: #769656; /* classic chess green */
-    --square-light: #eeeed2; /* classic chess tan */
+    --square-dark: #769656; /* classic */
+    --square-light: #eeeed2; /* classic */
     --visited-shade: rgba(0,0,0,.22);
     --current-glow: 0 0 0 3px #10b981, 0 0 18px #10b98188;
-    --legal-glow: 0 0 0 3px #60a5fa, 0 0 16px #60a5fa88, 0 0 24px #60a5fa55;
+    --legal-glow: 0 0 0 3px #60a5fa, 0 0 20px #60a5fa88, 0 0 36px #60a5fa55;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{
-    margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-    color:#e5e7eb; background: radial-gradient(1200px 800px at 20% -10%, #1f2937, #0b0c10);
-    display:flex; align-items:center; justify-content:center; padding:24px;
-  }
-  .app{width:min(100%, 1100px)}
+  body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", Segoe UI, Roboto, Helvetica, Arial; color:#e5e7eb; background: radial-gradient(1200px 800px at 20% -10%, #1f2937, #0b0c10); display:flex; align-items:center; justify-content:center; padding:24px}
+  .app{width:min(100%,1100px)}
   .topbar{display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:14px}
   .title{font-weight:800; letter-spacing:.2px; font-size:clamp(18px,3vw,26px)}
   .controls{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-  button{
-    background:#111827; border:1px solid #262b36; color:#e5e7eb; padding:8px 12px; border-radius:10px; cursor:pointer; transition:.15s transform, .15s opacity; font-weight:600
-  }
+  button{background:#111827; border:1px solid #262b36; color:#e5e7eb; padding:8px 12px; border-radius:10px; cursor:pointer; transition:.15s transform, .15s opacity; font-weight:600}
   button:hover{transform:translateY(-1px)}
   button[disabled]{opacity:.45; cursor:not-allowed}
-  .pill{padding:6px 10px; border-radius:999px; background:#0b1220; border:1px solid #233047;}
-  .hint{opacity:.85; font-size:13px}
+  .pill{padding:6px 10px; border-radius:999px; background:#0b1220; border:1px solid #233047}
 
   .board-wrap{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap}
-  .board{
-    --size: calc(var(--cell) * var(--board-size));
-    width:var(--size); height:var(--size);
-    display:grid; grid-template-columns: repeat(var(--board-size), var(--cell));
-    grid-template-rows: repeat(var(--board-size), var(--cell));
-    border-radius:16px; overflow:hidden; box-shadow: 0 10px 40px #00000066;
-    border:2px solid #2a2f3a; position:relative;
-  }
-  .square{position:relative; display:flex; align-items:center; justify-content:center; user-select:none;}
+  .board{--size: calc(var(--cell)*var(--board-size)); width:var(--size); height:var(--size); display:grid; grid-template-columns:repeat(var(--board-size), var(--cell)); grid-template-rows:repeat(var(--board-size), var(--cell)); border-radius:16px; overflow:hidden; box-shadow:0 10px 40px #0006; border:2px solid #2a2f3a; position:relative; z-index:0}
+  .square{position:relative; display:flex; align-items:center; justify-content:center; user-select:none}
   .square.light{background:var(--square-light)}
   .square.dark{background:var(--square-dark)}
-  /* visited shading */
   .square.visited::after{content:""; position:absolute; inset:0; background:var(--visited-shade)}
-  /* current cell glow */
-  .square.current{outline: none; box-shadow: var(--current-glow) inset}
-  /* legal move highlight — full glow overlay */
-  .square.legal::before{content:""; position:absolute; inset:0; border-radius:0; box-shadow: var(--legal-glow); pointer-events:none}
+  .square.current{box-shadow: var(--current-glow) inset}
+  .square.legal::before{content:""; position:absolute; inset:0; box-shadow: var(--legal-glow); pointer-events:none}
 
-  .idx{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color:#111; mix-blend-mode:multiply; z-index:1; font-size: clamp(14px, calc(var(--cell)*0.22), 22px)}
+  .idx{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New"; color:#111; mix-blend-mode:multiply; z-index:1; font-size: clamp(12px, calc(var(--cell)*0.2), 20px)}
   .idx.visited{color:#333; opacity:.85}
-  .knight{position:absolute; z-index:2; font-size: clamp(28px, calc(var(--cell)*0.58), 54px); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35));}
-
-  .hint-badge{position:absolute; top:6px; right:6px; z-index:3; background:#0b1220; border:1px solid #1f2a44; padding:2px 6px; border-radius:8px; font-size:12px}
+  .knight{position:absolute; z-index:2; font-size: clamp(28px, calc(var(--cell)*0.58), 54px); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35))}
 
   .side{flex:1; min-width:260px; background:#0b1220; border:1px solid #1f2a44; border-radius:16px; padding:14px}
   .side h3{margin:.2rem 0 .6rem; font-size:16px}
   .meta{display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:14px}
   .meta div{background:#0e1726; border:1px solid #25324a; padding:8px 10px; border-radius:10px}
-  .footer{margin-top:10px; font-size:13px; opacity:.85}
-
-  /* overlays */
-  .overlay{position:fixed; inset:0; background: radial-gradient(1000px 700px at 30% -10%, #18212f, #090b0f); display:none; align-items:center; justify-content:center}
-  .card{background:#0b1220; border:1px solid #1f2a44; border-radius:16px; padding:22px; width:min(92vw, 560px)}
-  .card h1{margin:0 0 8px; font-size:24px}
-  .card p{margin:0 0 12px; opacity:.9}
 
   .toast{position:fixed; right:16px; bottom:16px; background:#0b1220; border:1px solid #1f2a44; padding:10px 12px; border-radius:10px; font-size:14px; opacity:0; transform:translateY(8px); transition:.2s}
   .toast.show{opacity:1; transform:translateY(0)}
 
-  ul.simple{margin:.4rem 0 .8rem 1.2rem}
+  /* overlays */
+  .overlay{position:fixed; inset:0; background: radial-gradient(1000px 700px at 30% -10%, #18212f, #090b0f); display:none; align-items:center; justify-content:center; z-index:10000; pointer-events:auto}
+  .card{background:#0b1220; border:1px solid #1f2a44; border-radius:16px; padding:22px; width:min(92vw,560px)}
+  .card h1{margin:0 0 8px; font-size:24px}
+  .card p{margin:0 0 12px; opacity:.9}
 </style>
 </head>
 <body>
@@ -104,24 +79,16 @@
           <div>경과 시간: <b id="elapsed">00:00</b></div>
           <div>스테이지: <b id="stageHuman">1 / 5</b></div>
         </div>
-        <div class="footer">
-          먼저 시작 칸을 <b>클릭</b>하세요. 이후에는 ♞ 나이트의 이동 규칙(2칸+1칸 L자)으로만 이동할 수 있어요.<br/><br/>
-          이미 방문한 칸은 <b>살짝 어둡게</b>, 현재 칸은 <b>초록 글로우</b>, 가능한 다음 이동은 <b>파란 글로우</b>로 표시됩니다.
-        </div>
       </aside>
     </div>
   </div>
 
-  <!-- Start overlay (no stage picker) -->
+  <!-- Start overlay -->
   <div class="overlay" id="start">
     <div class="card">
       <h1>♞ 기사의 모험</h1>
       <p>나이트의 규칙으로 모든 칸을 한 번씩만 방문하세요. 스테이지는 5×5 → 9×9 순으로 자동 진행됩니다.</p>
       <button id="btnStart">게임 시작</button>
-      <ul class="simple hint">
-        <li>막히면 <b>되돌리기</b>를 눌러 이전 칸으로 돌아가세요.</li>
-        <li>힌트는 현재 상황에서 좋은 수 <b>3개</b>만 보여줍니다.</li>
-      </ul>
     </div>
   </div>
 
@@ -138,367 +105,166 @@
 
 <script>
 (function(){
-  // --- Game State ---
-  const stages = [5,6,7,8,9];
-  let stageIndex = 0; // 0..4
-  let N = stages[stageIndex];
-  let boardEl = document.getElementById('board');
-  let movesEl = document.getElementById('moves');
-  let totalEl = document.getElementById('total');
-  let leftEl = document.getElementById('left');
-  let coordEl = document.getElementById('coord');
-  let stageLabel = document.getElementById('stageLabel');
-  let stageHumanEl = document.getElementById('stageHuman');
-  let btnNext = document.getElementById('btnNext');
-  let btnReset = document.getElementById('btnReset');
-  let btnUndo  = document.getElementById('btnUndo');
-  let btnHint  = document.getElementById('btnHint');
-  const startOverlay = document.getElementById('start');
-  const finalOverlay = document.getElementById('final');
-  const toast = document.getElementById('toast');
-  const btnStart = document.getElementById('btnStart');
-  // click-through 방지용 가드
-  let suppressNextClick = false;
-  const btnStartScreen = document.getElementById('btnStartScreen');
-  const btnFinalToStart = document.getElementById('btnFinalToStart');
-  const elapsedEl = document.getElementById('elapsed');
+  // --- Config & State ---
+  const stages=[5,6,7,8,9];
+  let stageIndex=0; let N=stages[stageIndex];
 
-  // cheat detector: Backquote (₩ on KR keybd) then Enter within 1.5s -> autocomplete (hidden)
-  let cheatArmed = false; let cheatTimer = null;
+  const boardEl=document.getElementById('board');
+  const startOverlay=document.getElementById('start');
+  const finalOverlay=document.getElementById('final');
+  const btnStart=document.getElementById('btnStart');
+  const btnStartScreen=document.getElementById('btnStartScreen');
+  const btnFinalToStart=document.getElementById('btnFinalToStart');
+  const btnReset=document.getElementById('btnReset');
+  const btnUndo=document.getElementById('btnUndo');
+  const btnHint=document.getElementById('btnHint');
+  const btnNext=document.getElementById('btnNext');
+  const stageLabel=document.getElementById('stageLabel');
+  const movesEl=document.getElementById('moves');
+  const totalEl=document.getElementById('total');
+  const leftEl=document.getElementById('left');
+  const coordEl=document.getElementById('coord');
+  const stageHumanEl=document.getElementById('stageHuman');
+  const elapsedEl=document.getElementById('elapsed');
+  const toast=document.getElementById('toast');
 
-  const knightMoves = [
-    [ 2, 1],[ 2,-1],[-2, 1],[-2,-1],
-    [ 1, 2],[ 1,-2],[-1, 2],[-1,-2]
-  ];
+  const knightMoves=[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]];
 
-  let current = null; // {r,c}
-  let path = []; // list of {r,c}
-  let visited = Array.from({length: N}, () => Array(N).fill(0)); // 0=unvisited, >0 move index
+  let current=null; let path=[]; let visited=[];
+  let stageStart=null; let tickTimer=null; let totalMillis=0; const perStage=[0,0,0,0,0];
 
-  // timing
-  let stageStart = null; // Date.now() when first move happens
-  let tickTimer = null;  // interval handle
-  let totalMillis = 0;   // accumulated total across stages
-  const perStage = [0,0,0,0,0];
+  // Hidden cheat: Backquote then Enter within 1.5s
+  let cheatArmed=false; let cheatTimer=null;
 
-  // --- Utils ---
-  const idx = (r,c) => r*N + c;
-  const inBounds = (r,c) => r>=0 && c>=0 && r<N && c<N;
-  function setCSSVar(name, value){ document.documentElement.style.setProperty(name, value); }
-  function showToast(msg){ toast.textContent = msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 1200); }
-  const fmt = ms=>{
-    const s = Math.floor(ms/1000); const m = Math.floor(s/60); const r = s%60;
-    return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
-  }
-  function startTick(){
-    stopTick();
-    tickTimer = setInterval(()=>{
-      const now = Date.now();
-      const ms = (stageStart? (now-stageStart):0) + perStage[stageIndex];
-      elapsedEl.textContent = fmt(ms);
-    }, 200);
-  }
-  function stopTick(){ if(tickTimer){ clearInterval(tickTimer); tickTimer=null; } }
+  // Helpers
+  const idx=(r,c)=>r*N+c;
+  const inBounds=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
+  const isOverlayVisible=()=> getComputedStyle(startOverlay).display!=='none' || getComputedStyle(finalOverlay).display!=='none';
+  const fmt=ms=>{const s=Math.floor(ms/1000); const m=Math.floor(s/60); const r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`};
+  const setVar=(k,v)=>document.documentElement.style.setProperty(k,v);
+  function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),1200); }
+  function startTick(){ stopTick(); tickTimer=setInterval(()=>{ const ms=(stageStart?Date.now()-stageStart:0)+perStage[stageIndex]; elapsedEl.textContent=fmt(ms); },200); }
+  function stopTick(){ if(tickTimer){clearInterval(tickTimer); tickTimer=null;} }
 
-  function updateHUD(){
-    movesEl.textContent = path.length;
-    totalEl.textContent = N*N;
-    leftEl.textContent = N*N - path.length;
-    coordEl.textContent = current ? `(${current.r+1}, ${current.c+1})` : '-';
-    stageHumanEl.textContent = `${stageIndex+1} / ${stages.length}`;
-    btnNext.disabled = (path.length !== N*N);
-    // stage label
-    stageLabel.textContent = `Stage ${stageIndex+1} · ${N}×${N}`;
-  }
-
-  // --- Build Board ---
+  // Build board
   function buildBoard(){
-    boardEl.innerHTML = '';
-    boardEl.style.setProperty('--board-size', N);
-    const cellPx = Math.max(60, Math.min(96, Math.floor(760 / N)));
-    setCSSVar('--cell', cellPx+'px');
+    boardEl.innerHTML='';
+    boardEl.style.setProperty('--board-size',N);
+    const cellPx=Math.max(60, Math.min(96, Math.floor(760/N))); setVar('--cell', cellPx+'px');
+    visited=Array.from({length:N},()=>Array(N).fill(0));
+    current=null; path=[]; updateHUD();
 
     for(let r=0;r<N;r++){
       for(let c=0;c<N;c++){
-        const sq = document.createElement('div');
-        sq.className = 'square ' + (((r+c)%2===0)?'light':'dark');
-        sq.dataset.r = r; sq.dataset.c = c; sq.role = 'gridcell';
-
-        const idxSpan = document.createElement('div');
-        idxSpan.className = 'idx';
-        idxSpan.textContent = '';
-        sq.appendChild(idxSpan);
-
-        sq.addEventListener('click', onSquareClick);
+        const sq=document.createElement('div');
+        sq.className='square '+(((r+c)%2===0)?'light':'dark');
+        sq.dataset.r=r; sq.dataset.c=c;
+        const span=document.createElement('div'); span.className='idx'; sq.appendChild(span);
+        sq.addEventListener('click', onSquareClick, {passive:true});
         boardEl.appendChild(sq);
       }
     }
   }
 
-  function clearBoardDecor(){
+  function clearDecor(){
     for(const sq of boardEl.children){
       sq.classList.remove('visited','current','legal');
-      const idxSpan = sq.querySelector('.idx');
-      idxSpan.classList.remove('visited');
-      // remove any knight icons
-      const k = sq.querySelector('.knight');
-      if(k) k.remove();
-      // remove hint badges
-      const hb = sq.querySelector('.hint-badge');
-      if(hb) hb.remove();
+      const span=sq.querySelector('.idx'); span.classList.remove('visited');
+      const k=sq.querySelector('.knight'); if(k) k.remove();
+      const hb=sq.querySelector('.hint-badge'); if(hb) hb.remove();
     }
   }
 
   function render(){
-    clearBoardDecor();
-
-    // visited & numbering
-    for(let r=0;r<N;r++){
-      for(let c=0;c<N;c++){
-        const n = visited[r][c];
-        if(n>0){
-          const sq = boardEl.children[idx(r,c)];
-          sq.classList.add('visited');
-          const idxSpan = sq.querySelector('.idx');
-          idxSpan.textContent = n; // centered numbering
-          idxSpan.classList.add('visited');
-        }
+    clearDecor();
+    for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+      const n=visited[r][c]; if(n>0){
+        const sq=boardEl.children[idx(r,c)]; sq.classList.add('visited');
+        const sp=sq.querySelector('.idx'); sp.textContent=n; sp.classList.add('visited');
       }
     }
-
-    // current knight
     if(current){
-      const sq = boardEl.children[idx(current.r,current.c)];
+      const sq=boardEl.children[idx(current.r,current.c)];
       sq.classList.add('current');
-      const k = document.createElement('div');
-      k.className = 'knight';
-      k.textContent = '♞';
-      sq.appendChild(k);
-
-      // legal moves highlight (full glow)
-      for(const [dr,dc] of knightMoves){
-        const nr=current.r+dr, nc=current.c+dc;
-        if(inBounds(nr,nc) && !visited[nr][nc]){
-          boardEl.children[idx(nr,nc)].classList.add('legal');
-        }
-      }
+      const k=document.createElement('div'); k.className='knight'; k.textContent='♞'; sq.appendChild(k);
+      for(const [dr,dc] of knightMoves){ const nr=current.r+dr, nc=current.c+dc; if(inBounds(nr,nc)&&!visited[nr][nc]) boardEl.children[idx(nr,nc)].classList.add('legal'); }
     }
-
     updateHUD();
   }
 
   function onSquareClick(e){
-    // 시작버튼 클릭이 보드에 전파되는 현상 방지
-    if(suppressNextClick){ suppressNextClick = false; return; }
-    const r = +e.currentTarget.dataset.r;
-    const c = +e.currentTarget.dataset.c;
+    if(isOverlayVisible()) return; // overlay showing => ignore
 
-    // first click sets the start
-    if(!current){
-      current = {r,c};
-      visited[r][c] = 1;
-      path = [{r,c}];
-      if(!stageStart){ stageStart = Date.now(); startTick(); }
-      render();
-      return;
-    }
+    // first click sets start
+    const r=+e.currentTarget.dataset.r; const c=+e.currentTarget.dataset.c;
+    if(!current){ current={r,c}; visited[r][c]=1; path=[{r,c}]; if(!stageStart){stageStart=Date.now(); startTick();} render(); return; }
 
-    // subsequent clicks must be legal knight moves
-    const isLegal = knightMoves.some(([dr,dc])=> current.r+dr===r && current.c+dc===c);
-    if(!isLegal || visited[r][c]) return; // ignore illegal or revisits
+    // legal move only
+    const legal=knightMoves.some(([dr,dc])=> current.r+dr===r && current.c+dc===c);
+    if(!legal || visited[r][c]) return;
+    current={r,c}; visited[r][c]=path.length+1; path.push({r,c}); render();
 
-    current = {r,c};
-    visited[r][c] = path.length + 1;
-    path.push({r,c});
-
-    render();
-
-    // win check
-    if(path.length === N*N){
-      // stop stage timer & accumulate
-      const spent = (stageStart? (Date.now()-stageStart):0);
-      perStage[stageIndex] += spent;
-      totalMillis += spent;
-      stageStart = null; stopTick(); elapsedEl.textContent = fmt(perStage[stageIndex]);
-
+    // clear check
+    if(path.length===N*N){
+      const spent=(stageStart?Date.now()-stageStart:0); perStage[stageIndex]+=spent; totalMillis+=spent; stageStart=null; stopTick(); elapsedEl.textContent=fmt(perStage[stageIndex]);
       showToast(`Stage ${stageIndex+1} 클리어!`);
-      if(stageIndex === stages.length-1){
-        // final
-        setTimeout(showFinal, 450);
-      }
+      btnNext.disabled=false;
     }
   }
 
-  function newGame(){
-    N = stages[stageIndex];
-    visited = Array.from({length: N}, () => Array(N).fill(0));
-    current = null; path = [];
-    stageStart = null; stopTick(); elapsedEl.textContent = '00:00';
-    buildBoard(); render();
+  function updateHUD(){
+    movesEl.textContent=path.length; totalEl.textContent=N*N; leftEl.textContent=N*N-path.length; coordEl.textContent=current?`(${current.r+1}, ${current.c+1})`:'-';
+    stageHumanEl.textContent=`${stageIndex+1} / ${stages.length}`; stageLabel.textContent=`Stage ${stageIndex+1} · ${N}×${N}`;
+    btnNext.disabled = (path.length!==N*N);
   }
 
-  function undo(){
-    if(path.length<=1){ // clear start if exists
-      if(path.length===1){
-        visited[path[0].r][path[0].c]=0;
-      }
-      current=null; path=[]; render(); return;
-    }
-    const last = path.pop();
-    visited[last.r][last.c]=0;
-    current = path[path.length-1];
-    render();
-  }
+  function newGame(){ buildBoard(); render(); stageStart=null; stopTick(); elapsedEl.textContent='00:00'; }
+  function resetStage(){ buildBoard(); render(); }
+  function undo(){ if(path.length<=1){ if(path.length===1){ visited[path[0].r][path[0].c]=0;} current=null; path=[]; render(); return;} const last=path.pop(); visited[last.r][last.c]=0; current=path[path.length-1]; render(); }
 
-  // Warnsdorff heuristic: return sorted next candidates by degree asc
-  function sortedCandidates(r,c){
-    const degree = (rr,cc)=>{
-      let d=0; for(const [dr,dc] of knightMoves){
-        const nr=rr+dr, nc=cc+dc; if(inBounds(nr,nc) && !visited[nr][nc]) d++;
-      } return d;
-    }
-    const out=[];
-    for(const [dr,dc] of knightMoves){
-      const nr=r+dr, nc=c+dc;
-      if(inBounds(nr,nc) && !visited[nr][nc]) out.push({r:nr,c:nc,deg:degree(nr,nc)});
-    }
-    out.sort((a,b)=> a.deg-b.deg || (Math.random()-0.5));
-    return out;
-  }
+  // Hint: top-3 best moves by Warnsdorff degree
+  function degree(r,c){ let d=0; for(const [dr,dc] of knightMoves){ const nr=r+dr, nc=c+dc; if(inBounds(nr,nc)&&!visited[nr][nc]) d++; } return d; }
+  function sortedCandidates(r,c){ const out=[]; for(const [dr,dc] of knightMoves){ const nr=r+dr,nc=c+dc; if(inBounds(nr,nc)&&!visited[nr][nc]) out.push({r:nr,c:nc,deg:degree(nr,nc)});} out.sort((a,b)=>a.deg-b.deg||Math.random()-0.5); return out; }
+  function showTop3(){ if(!current){ showToast('시작 칸을 먼저 선택하세요'); return;} const cs=sortedCandidates(current.r,current.c).slice(0,3); if(!cs.length){ showToast('가능한 수가 없어요'); return;} cs.forEach((p,i)=>{ const sq=boardEl.children[idx(p.r,p.c)]; sq.classList.add('legal'); const b=document.createElement('div'); b.className='hint-badge'; b.textContent=i+1; b.style.cssText='position:absolute;top:6px;right:6px;background:#0b1220;border:1px solid #1f2a44;border-radius:8px;padding:2px 6px;font-size:12px;z-index:3'; sq.appendChild(b); }); showToast('상위 3수 표시'); }
 
-  // Auto-complete (hidden, for cheat only)
-  function warnsdorffSolve(from){
-    let cur = from || ( {r:0,c:0} );
-    if(!from){ visited[cur.r][cur.c]=1; path=[{...cur}]; }
+  // Hidden autocomplete (cheat)
+  function warnsdorffSolve(start){ let cur=start || {r:0,c:0}; if(!start){ visited[cur.r][cur.c]=1; path=[{...cur}]; }
+    const deg=(r,c)=>{let d=0; for(const[dr,dc]of knightMoves){const nr=r+dr,nc=c+dc; if(inBounds(nr,nc)&&!visited[nr][nc]) d++;} return d;};
+    while(path.length<N*N){ let cand=[]; for(const[dr,dc]of knightMoves){ const nr=cur.r+dr,nc=cur.c+dc; if(inBounds(nr,nc)&&!visited[nr][nc]) cand.push({r:nr,c:nc,deg:deg(nr,nc)});} if(!cand.length) return false; cand.sort((a,b)=>a.deg-b.deg||Math.random()-0.5); const nxt=cand[0]; cur={r:nxt.r,c:nxt.c}; visited[cur.r][cur.c]=path.length+1; path.push({...cur}); }
+    current={...path[path.length-1]}; return true; }
+  function autoComplete(){ if(!current){ current={r:(N%2?Math.floor(N/2):1), c:(N%2?0:1)}; visited[current.r][current.c]=1; path=[{...current}]; }
+    const snap=visited.map(r=>r.slice()); const start={...current}; for(let t=0;t<120;t++){ for(let r=0;r<N;r++) for(let c=0;c<N;c++) visited[r][c]=snap[r][c]; path=[{...start}]; current={...start}; knightMoves.sort(()=>Math.random()-0.5); const ok=warnsdorffSolve(start); if(ok){ render(); return true; } } render(); return false; }
 
-    const degree = (r,c)=>{
-      let d=0; for(const [dr,dc] of knightMoves){
-        const nr=r+dr, nc=c+dc; if(inBounds(nr,nc) && !visited[nr][nc]) d++;
-      } return d;
-    }
-
-    while(path.length < N*N){
-      let candidates=[];
-      for(const [dr,dc] of knightMoves){
-        const nr=cur.r+dr, nc=cur.c+dc;
-        if(inBounds(nr,nc) && !visited[nr][nc]){
-          candidates.push({r:nr,c:nc, deg:degree(nr,nc)});
-        }
-      }
-      if(candidates.length===0) return false; // dead end
-      candidates.sort((a,b)=> a.deg-b.deg || (Math.random()-0.5));
-      const nxt = candidates[0];
-      cur = {r:nxt.r, c:nxt.c};
-      visited[cur.r][cur.c] = path.length+1;
-      path.push({...cur});
-    }
-    current = {...path[path.length-1]};
-    return true;
-  }
-
-  function autoComplete(){
-    if(!current){
-      current = {r: (N%2? Math.floor(N/2):1), c: (N%2? 0:1)};
-      visited[current.r][current.c]=1; path=[{...current}];
-    }
-    const snapshot = visited.map(row=>row.slice());
-    const start = {...current};
-    for(let tries=0; tries<120; tries++){
-      for(let r=0;r<N;r++) for(let c=0;c<N;c++) visited[r][c]=snapshot[r][c];
-      path = [{...start}];
-      current={...start};
-      // randomize move order a bit each attempt
-      knightMoves.sort(()=>Math.random()-0.5);
-      const ok = warnsdorffSolve(start);
-      if(ok){ render(); return true; }
-    }
-    render();
-    return false;
-  }
-
-  // Hint: show top 3 candidates only (badges 1~3)
-  function showTop3(){
-    if(!current){ showToast('시작 칸을 먼저 선택하세요'); return; }
-    const cands = sortedCandidates(current.r, current.c).slice(0,3);
-    if(cands.length===0){ showToast('가능한 수가 없어요'); return; }
-    // decorate
-    cands.forEach((c,i)=>{
-      const sq = boardEl.children[idx(c.r,c.c)];
-      sq.classList.add('legal');
-      const b = document.createElement('div');
-      b.className = 'hint-badge';
-      b.textContent = i+1; // rank
-      sq.appendChild(b);
-    });
-    showToast('상위 3수 표시');
-  }
-
-  // Stage navigation / lifecycle
-  function toStartScreen(){
-    startOverlay.style.display='flex';
-    finalOverlay.style.display='none';
-    // reset everything
-    stageIndex = 0; N = stages[0];
-    totalMillis = 0; for(let i=0;i<perStage.length;i++) perStage[i]=0;
-    newGame();
-  }
-  function nextStage(){
-    if(stageIndex<stages.length-1){
-      stageIndex++; newGame();
-    } else {
-      showFinal();
-    }
-  }
-  function prevStage(){
-    if(stageIndex>0){ stageIndex--; newGame(); }
-  }
-
-  function showFinal(){
-    // build summary text
-    let html = `<b>총 소요 시간:</b> ${fmt(totalMillis)}<br><br>`;
-    html += '<b>스테이지별 기록</b><br>';
-    stages.forEach((sz, i)=>{
-      html += `Stage ${i+1} (${sz}×${sz}) — ${fmt(perStage[i])}<br>`;
-    });
-    document.getElementById('finalSummary').innerHTML = html;
-    finalOverlay.style.display='flex';
-  }
+  // Stage nav & final
+  function toStartScreen(){ finalOverlay.style.display='none'; startOverlay.style.display='flex'; stageIndex=0; N=stages[0]; totalMillis=0; for(let i=0;i<perStage.length;i++) perStage[i]=0; newGame(); }
+  function nextStage(){ if(stageIndex<stages.length-1){ stageIndex++; N=stages[stageIndex]; newGame(); } else { showFinal(); } }
+  function prevStage(){ if(stageIndex>0){ stageIndex--; N=stages[stageIndex]; newGame(); } }
+  function showFinal(){ let html=`<b>총 소요 시간:</b> ${fmt(totalMillis)}<br><br>`; html+='<b>스테이지별 기록</b><br>'; stages.forEach((sz,i)=>{ html+=`Stage ${i+1} (${sz}×${sz}) — ${fmt(perStage[i])}<br>`; }); document.getElementById('finalSummary').innerHTML=html; finalOverlay.style.display='flex'; }
 
   // Buttons
-  btnReset.addEventListener('click', newGame);
+  btnReset.addEventListener('click', resetStage);
   btnUndo.addEventListener('click', undo);
   btnHint.addEventListener('click', showTop3);
-  btnNext.addEventListener('click', ()=>{ if(path.length===N*N) { nextStage(); } });
-  btnStart.addEventListener('click', (ev)=>{
-    ev.preventDefault(); ev.stopPropagation();
-    suppressNextClick = true; // 바로 뒤 클릭 무시
-    requestAnimationFrame(()=>{ startOverlay.style.display='none'; newGame(); });
-  });
-  btnStartScreen.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); suppressNextClick=true; toStartScreen(); });
-  btnFinalToStart.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); suppressNextClick=true; toStartScreen(); });
+  btnNext.addEventListener('click', ()=>{ if(path.length===N*N) nextStage(); });
 
-  // Keyboard: hidden cheats
-  // 1) Backquote (₩) then Enter within 1.5s => auto complete
-  // 2) ArrowLeft => 이전 스테이지, ArrowRight => 다음 스테이지 (치트)
-  // 3) Escape => 초기 화면
+  // Start buttons with pointerdown guard to avoid click-through
+  btnStart.addEventListener('pointerdown', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); });
+  btnStart.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); requestAnimationFrame(()=>{ startOverlay.style.display='none'; newGame(); }); });
+  btnStartScreen.addEventListener('pointerdown', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); });
+  btnStartScreen.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); toStartScreen(); });
+  btnFinalToStart.addEventListener('pointerdown', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); });
+  btnFinalToStart.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); toStartScreen(); });
+
+  // Keyboard cheats: ₩ then Enter = autocomplete, ←/→ = stage nav, Esc = start screen
   window.addEventListener('keydown', (e)=>{
-    if(e.code === 'Backquote'){
-      cheatArmed = true; clearTimeout(cheatTimer); cheatTimer = setTimeout(()=> cheatArmed=false, 1500);
-    } else if(e.key === 'Enter' && cheatArmed){
-      cheatArmed=false; clearTimeout(cheatTimer);
-      setTimeout(()=>{ const ok = autoComplete(); if(!ok) showToast('자동완성 실패'); }, 20);
-    } else if(e.key === 'ArrowRight'){
-      // cheat: go next stage
-      nextStage();
-    } else if(e.key === 'ArrowLeft'){
-      // cheat: go previous stage
-      prevStage();
-    } else if(e.key === 'Escape'){
-      toStartScreen();
-    }
+    if(e.code==='Backquote'){ cheatArmed=true; clearTimeout(cheatTimer); cheatTimer=setTimeout(()=>cheatArmed=false,1500); }
+    else if(e.key==='Enter' && cheatArmed){ cheatArmed=false; clearTimeout(cheatTimer); setTimeout(()=>{ const ok=autoComplete(); if(!ok) showToast('자동완성 실패'); },20); }
+    else if(e.key==='ArrowRight'){ nextStage(); }
+    else if(e.key==='ArrowLeft'){ prevStage(); }
+    else if(e.key==='Escape'){ toStartScreen(); }
   }, {passive:true});
 
-  // Initial: show start overlay, build board behind
+  // Init
   startOverlay.style.display='flex';
   newGame();
 })();
