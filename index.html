@@ -8,11 +8,11 @@
   :root{
     --board-size: 5;
     --cell: 84px;
-    --square-dark: #769656; /* classic */
-    --square-light: #eeeed2; /* classic */
-    --visited-shade: rgba(0,0,0,.22);
+    --square-dark: #2b2b2b; /* black-ish */
+    --square-light: #f7f7f7; /* white-ish */
+    --visited-shade: rgba(0,0,0,.20);
     --current-glow: 0 0 0 3px #10b981, 0 0 18px #10b98188;
-    --legal-glow: 0 0 0 3px #60a5fa, 0 0 20px #60a5fa88, 0 0 36px #60a5fa55;
+    --legal-ring: 0 0 0 3px #60a5fa, 0 0 22px #60a5fa7a, 0 0 40px #60a5fa55;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -33,11 +33,13 @@
   .square.dark{background:var(--square-dark)}
   .square.visited::after{content:""; position:absolute; inset:0; background:var(--visited-shade)}
   .square.current{box-shadow: var(--current-glow) inset}
-  .square.legal::before{content:""; position:absolute; inset:0; box-shadow: var(--legal-glow); pointer-events:none}
+  /* FULL-area legal highlight (면+테두리 모두) */
+  .square.legal::before{content:""; position:absolute; inset:0; border-radius:0; box-shadow: var(--legal-ring); pointer-events:none}
+  .square.legal::after{content:""; position:absolute; inset:0; background: rgba(96,165,250,.18); pointer-events:none}
 
   .idx{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:800; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New"; color:#111; mix-blend-mode:multiply; z-index:1; font-size: clamp(12px, calc(var(--cell)*0.2), 20px)}
   .idx.visited{color:#333; opacity:.85}
-  .knight{position:absolute; z-index:2; font-size: clamp(28px, calc(var(--cell)*0.58), 54px); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35))}
+  .knight{position:absolute; z-index:2; font-size: clamp(26px, calc(var(--cell)*0.52), 48px); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35))}
 
   .side{flex:1; min-width:260px; background:#0b1220; border:1px solid #1f2a44; border-radius:16px; padding:14px}
   .side h3{margin:.2rem 0 .6rem; font-size:16px}
@@ -61,8 +63,8 @@
       <div class="controls">
         <button id="btnStartScreen">초기 화면</button>
         <button id="btnReset">리셋</button>
-        <button id="btnUndo">되돌리기</button>
-        <button id="btnHint">힌트(상위 3수)</button>
+        <button id="btnUndo" disabled>되돌리기(1회)</button>
+        <button id="btnHint">힌트(최선 1수)</button>
         <button id="btnNext" disabled>다음 스테이지 ▶</button>
       </div>
     </div>
@@ -74,7 +76,6 @@
         <div class="meta">
           <div>방문 수: <b id="moves">0</b></div>
           <div>전체 칸: <b id="total">25</b></div>
-          <div>현재 좌표: <b id="coord">-</b></div>
           <div>남은 칸: <b id="left">25</b></div>
           <div>경과 시간: <b id="elapsed">00:00</b></div>
           <div>스테이지: <b id="stageHuman">1 / 5</b></div>
@@ -105,7 +106,6 @@
 
 <script>
 (function(){
-  // --- Config & State ---
   const stages=[5,6,7,8,9];
   let stageIndex=0; let N=stages[stageIndex];
 
@@ -123,7 +123,6 @@
   const movesEl=document.getElementById('moves');
   const totalEl=document.getElementById('total');
   const leftEl=document.getElementById('left');
-  const coordEl=document.getElementById('coord');
   const stageHumanEl=document.getElementById('stageHuman');
   const elapsedEl=document.getElementById('elapsed');
   const toast=document.getElementById('toast');
@@ -132,6 +131,9 @@
 
   let current=null; let path=[]; let visited=[];
   let stageStart=null; let tickTimer=null; let totalMillis=0; const perStage=[0,0,0,0,0];
+
+  // per-turn single undo flag
+  let canUndo=false;
 
   // Hidden cheat: Backquote then Enter within 1.5s
   let cheatArmed=false; let cheatTimer=null;
@@ -142,17 +144,26 @@
   const isOverlayVisible=()=> getComputedStyle(startOverlay).display!=='none' || getComputedStyle(finalOverlay).display!=='none';
   const fmt=ms=>{const s=Math.floor(ms/1000); const m=Math.floor(s/60); const r=s%60; return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`};
   const setVar=(k,v)=>document.documentElement.style.setProperty(k,v);
-  function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),1200); }
+  function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),1100); }
   function startTick(){ stopTick(); tickTimer=setInterval(()=>{ const ms=(stageStart?Date.now()-stageStart:0)+perStage[stageIndex]; elapsedEl.textContent=fmt(ms); },200); }
   function stopTick(){ if(tickTimer){clearInterval(tickTimer); tickTimer=null;} }
+
+  function computeCellPx(){
+    // Ensure whole board fits without scrolling
+    const vh = window.innerHeight; const vw = window.innerWidth;
+    const sideReserve = 420; // estimate for side panel & paddings
+    const topReserve = 220;  // topbar + margins
+    const maxBoard = Math.max(320, Math.min(vh - topReserve, vw - sideReserve));
+    return Math.max(42, Math.min(88, Math.floor(maxBoard / N)));
+  }
 
   // Build board
   function buildBoard(){
     boardEl.innerHTML='';
     boardEl.style.setProperty('--board-size',N);
-    const cellPx=Math.max(60, Math.min(96, Math.floor(760/N))); setVar('--cell', cellPx+'px');
+    const cellPx=computeCellPx(); setVar('--cell', cellPx+'px');
     visited=Array.from({length:N},()=>Array(N).fill(0));
-    current=null; path=[]; updateHUD();
+    current=null; path=[]; canUndo=false; updateHUD();
 
     for(let r=0;r<N;r++){
       for(let c=0;c<N;c++){
@@ -171,7 +182,7 @@
       sq.classList.remove('visited','current','legal');
       const span=sq.querySelector('.idx'); span.classList.remove('visited');
       const k=sq.querySelector('.knight'); if(k) k.remove();
-      const hb=sq.querySelector('.hint-badge'); if(hb) hb.remove();
+      const badges=sq.querySelectorAll('.hint-badge'); badges.forEach(b=>b.remove());
     }
   }
 
@@ -195,37 +206,44 @@
   function onSquareClick(e){
     if(isOverlayVisible()) return; // overlay showing => ignore
 
-    // first click sets start
     const r=+e.currentTarget.dataset.r; const c=+e.currentTarget.dataset.c;
-    if(!current){ current={r,c}; visited[r][c]=1; path=[{r,c}]; if(!stageStart){stageStart=Date.now(); startTick();} render(); return; }
+    if(!current){ // first click sets start
+      current={r,c}; visited[r][c]=1; path=[{r,c}]; canUndo=true; if(!stageStart){stageStart=Date.now(); startTick();} render(); return; }
 
     // legal move only
     const legal=knightMoves.some(([dr,dc])=> current.r+dr===r && current.c+dc===c);
     if(!legal || visited[r][c]) return;
-    current={r,c}; visited[r][c]=path.length+1; path.push({r,c}); render();
+    current={r,c}; visited[r][c]=path.length+1; path.push({r,c}); canUndo=true; render();
 
     // clear check
     if(path.length===N*N){
       const spent=(stageStart?Date.now()-stageStart:0); perStage[stageIndex]+=spent; totalMillis+=spent; stageStart=null; stopTick(); elapsedEl.textContent=fmt(perStage[stageIndex]);
       showToast(`Stage ${stageIndex+1} 클리어!`);
-      btnNext.disabled=false;
+      btnNext.disabled=false; canUndo=false; updateHUD();
     }
   }
 
   function updateHUD(){
-    movesEl.textContent=path.length; totalEl.textContent=N*N; leftEl.textContent=N*N-path.length; coordEl.textContent=current?`(${current.r+1}, ${current.c+1})`:'-';
+    movesEl.textContent=path.length; totalEl.textContent=N*N; leftEl.textContent=N*N-path.length;
     stageHumanEl.textContent=`${stageIndex+1} / ${stages.length}`; stageLabel.textContent=`Stage ${stageIndex+1} · ${N}×${N}`;
     btnNext.disabled = (path.length!==N*N);
+    btnUndo.disabled = !canUndo || path.length===0; // 한 턴에 1회만 허용
   }
 
   function newGame(){ buildBoard(); render(); stageStart=null; stopTick(); elapsedEl.textContent='00:00'; }
   function resetStage(){ buildBoard(); render(); }
-  function undo(){ if(path.length<=1){ if(path.length===1){ visited[path[0].r][path[0].c]=0;} current=null; path=[]; render(); return;} const last=path.pop(); visited[last.r][last.c]=0; current=path[path.length-1]; render(); }
+  function undo(){
+    if(!canUndo || path.length===0) return; // 1회 제한
+    if(path.length===1){ // 시작만 되돌리기
+      visited[path[0].r][path[0].c]=0; path=[]; current=null; canUndo=false; render(); return;
+    }
+    const last=path.pop(); visited[last.r][last.c]=0; current=path[path.length-1]||null; canUndo=false; render();
+  }
 
-  // Hint: top-3 best moves by Warnsdorff degree
+  // Hint: best 1 move only (Warnsdorff degree)
   function degree(r,c){ let d=0; for(const [dr,dc] of knightMoves){ const nr=r+dr, nc=c+dc; if(inBounds(nr,nc)&&!visited[nr][nc]) d++; } return d; }
   function sortedCandidates(r,c){ const out=[]; for(const [dr,dc] of knightMoves){ const nr=r+dr,nc=c+dc; if(inBounds(nr,nc)&&!visited[nr][nc]) out.push({r:nr,c:nc,deg:degree(nr,nc)});} out.sort((a,b)=>a.deg-b.deg||Math.random()-0.5); return out; }
-  function showTop3(){ if(!current){ showToast('시작 칸을 먼저 선택하세요'); return;} const cs=sortedCandidates(current.r,current.c).slice(0,3); if(!cs.length){ showToast('가능한 수가 없어요'); return;} cs.forEach((p,i)=>{ const sq=boardEl.children[idx(p.r,p.c)]; sq.classList.add('legal'); const b=document.createElement('div'); b.className='hint-badge'; b.textContent=i+1; b.style.cssText='position:absolute;top:6px;right:6px;background:#0b1220;border:1px solid #1f2a44;border-radius:8px;padding:2px 6px;font-size:12px;z-index:3'; sq.appendChild(b); }); showToast('상위 3수 표시'); }
+  function showBest1(){ if(!current){ showToast('시작 칸을 먼저 선택하세요'); return;} const cs=sortedCandidates(current.r,current.c).slice(0,1); if(!cs.length){ showToast('가능한 수가 없어요'); return;} const p=cs[0]; const sq=boardEl.children[idx(p.r,p.c)]; sq.classList.add('legal'); showToast('최선 1수 표시'); }
 
   // Hidden autocomplete (cheat)
   function warnsdorffSolve(start){ let cur=start || {r:0,c:0}; if(!start){ visited[cur.r][cur.c]=1; path=[{...cur}]; }
@@ -244,7 +262,7 @@
   // Buttons
   btnReset.addEventListener('click', resetStage);
   btnUndo.addEventListener('click', undo);
-  btnHint.addEventListener('click', showTop3);
+  btnHint.addEventListener('click', showBest1);
   btnNext.addEventListener('click', ()=>{ if(path.length===N*N) nextStage(); });
 
   // Start buttons with pointerdown guard to avoid click-through
@@ -255,7 +273,7 @@
   btnFinalToStart.addEventListener('pointerdown', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); });
   btnFinalToStart.addEventListener('click', (ev)=>{ ev.preventDefault(); ev.stopPropagation(); toStartScreen(); });
 
-  // Keyboard cheats: ₩ then Enter = autocomplete, ←/→ = stage nav, Esc = start screen
+  // Keyboard cheats
   window.addEventListener('keydown', (e)=>{
     if(e.code==='Backquote'){ cheatArmed=true; clearTimeout(cheatTimer); cheatTimer=setTimeout(()=>cheatArmed=false,1500); }
     else if(e.key==='Enter' && cheatArmed){ cheatArmed=false; clearTimeout(cheatTimer); setTimeout(()=>{ const ok=autoComplete(); if(!ok) showToast('자동완성 실패'); },20); }
@@ -263,6 +281,9 @@
     else if(e.key==='ArrowLeft'){ prevStage(); }
     else if(e.key==='Escape'){ toStartScreen(); }
   }, {passive:true});
+
+  // Resize: keep whole board visible
+  window.addEventListener('resize', ()=>{ const cellPx=computeCellPx(); setVar('--cell', cellPx+'px'); render(); }, {passive:true});
 
   // Init
   startOverlay.style.display='flex';
